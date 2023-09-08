@@ -18,4 +18,4 @@ bugCaught is an output Subject<Array<string>> which will output all logs from co
 
 ## Bug Reports
 
-Feel free to submit a bug report [here](https://github.com/trayhem/bug-catcher)
+Feel free to submit a bug report [here](https://github.com/trayhem/npx-bug-catcher/issues)

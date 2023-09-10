@@ -1,10 +1,13 @@
 {
   "name": "ngx-bug-catcher",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Provides an gamification variant to submit bug reports for Angular projects",
   "main": "public-api.ts",
   "author": "Christopher Fullarton",
-  "keywords": ["bugtracker", "catch a bug"],
+  "keywords": [
+    "bugtracker",
+    "catch a bug"
+  ],
   "license": "ISC",
   "repository": "https://github.com/trayhem/npx-bug-catcher",
   "bugs": "https://github.com/trayhem/npx-bug-catcher/issues",

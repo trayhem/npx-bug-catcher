@@ -14,7 +14,7 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "publish": "cd dist/ngx-bug-catcher && npm publish --access public"
+    "deploy": "npm run build && cd dist/ngx-bug-catcher && npm publish --access public"
   },
   "private": false,
   "dependencies": {

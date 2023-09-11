@@ -1,6 +1,6 @@
 {
   "name": "ngx-bug-catcher",
-  "version": "0.0.3",
+  "version": "0.0.1",
   "description": "Provides an gamification variant to submit bug reports for Angular projects",
   "main": "public-api.ts",
   "author": "Christopher Fullarton",
@@ -17,7 +17,7 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "deploy": "npm version patch && npm run build && cd dist/ngx-bug-catcher && npm publish --access public"
+    "deploy": "npm version patch && cd ngx-bug-catcher && npm version patch && cd .. && npm run build && cd dist/ngx-bug-catcher && npm publish --access public"
   },
   "private": false,
   "dependencies": {

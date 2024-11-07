@@ -1,168 +1,185 @@
 import {
-  Component,
-  ComponentRef,
-  ElementRef,
-  HostListener,
-  Input,
-  OnDestroy, Output,
-  SecurityContext, Type,
-  ViewChild
+    Component,
+    ComponentRef,
+    ElementRef,
+    HostListener,
+    Input,
+    OnDestroy, Output,
+    SecurityContext, Type,
+    ViewChild
 } from '@angular/core';
 import { IconDefinition } from '@fortawesome/free-solid-svg-icons';
-import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { faBug, faBurst } from '@fortawesome/free-solid-svg-icons';
 import { Subject, takeUntil } from 'rxjs';
 import { Coordinate } from './models/coordinate.interface';
 import { DomSanitizer } from '@angular/platform-browser';
 
 @Component({
-  selector: 'npx-bug-catcher',
-  template: `
-    <div #bugElement id="bug-element" class="d-none" (click)="killBug()">
-      <div id="icon-wrapper">
-        <fa-icon [icon]="icon" size="2x"></fa-icon>
+    selector: 'npx-bug-catcher',
+    template: `
+      <div #bugElement id="bug-element" class="d-none" (click)="killBug()">
+        <div id="icon-wrapper">
+          <fa-icon [icon]="icon" size="2x"></fa-icon>
+        </div>
       </div>
-    </div>
-  `,
-  styleUrls: [ './bug-catcher.component.scss' ],
+    `,
+    styleUrls: ['./bug-catcher.component.scss']
 })
 export class BugCatcherComponent implements OnDestroy {
-  @Input('restartMovement$')
-  set restartMovement$(value: Subject<void>) {
-    this._restartMovement$ = value;
-    this._restartMovement$?.pipe(takeUntil(this._destroy$)).subscribe(() => this.initBugMovement());
-  }
-  private _restartMovement$?: Subject<void>;
-
-  @Output('bugCaught') public readonly bugCaught = new Subject<Array<string>>();
-
-  public icon: IconDefinition = faBug;
-
-  @ViewChild('bugElement') private readonly bugElement?: ElementRef<HTMLDivElement>;
-  private readonly messages: Array<string> = [];
-  private movingInterval?: number;
-  private _prevYCoordinate = 120;
-  private _prevXCoordinate = 20;
-  private _destroy$ = new Subject<void>();
-
-  constructor(
-    private readonly sanitizer: DomSanitizer,
-  ) {
-    const originalConsole = { error: console.error, warn: console.warn };
-    console.error = (title: string, error?: { code?: number, message?: string, stack: string }) => {
-      this.messages.push(error?.stack ?? title);
-      originalConsole.error(title, error);
-      if (!this.movingInterval) {
-        this.initBugMovement();
-        this.moveBug();
-      }
-    };
-    console.warn = message => {
-      this.messages.push(message);
-      originalConsole.warn(this.sanitizer.sanitize(SecurityContext.HTML, message));
-      if (!this.movingInterval) {
-        this.initBugMovement();
-        this.moveBug();
-      }
-    };
-
-    window.onerror = this.errorHandler;
-    window.addEventListener('error', this.errorHandler);
-    window.addEventListener('unhandledrejection', this.errorHandler);
-  }
-
-  @HostListener('window:error', [ '$event' ])
-  public errorHandler($error: any): void {
-    console.error('-----', $error);
-  }
-
-  public ngOnDestroy(): void {
-    this._destroy$.next();
-    this._destroy$.complete();
-  }
-
-  public killBug(): void {
-    this.icon = faBurst;
-    this.stopMovement();
-    clearInterval(this.movingInterval);
-
-    this.bugCaught.next(this.messages);
-  }
-
-  private initBugMovement(): void {
-    if (!this.bugElement) {
-      throw new Error('Bugelement not found as ElementRef in Controller');
+    @Input('restartMovement$')
+    set restartMovement$(value: Subject<void>) {
+        this._restartMovement$ = value;
+        this._restartMovement$?.pipe(takeUntil(this._destroy$)).subscribe(() => this.friendlyFacadeForInsectMovementControllerFactoryElement());
     }
 
-    this.moveBug();
-    this.bugElement.nativeElement.classList.remove('d-none');
-    this.icon = faBug;
-    this.movingInterval = setInterval(this.moveBug.bind(this), 12000);
-  }
+    private _restartMovement$?: Subject<void>;
 
-  private moveBug(): void {
-    const bugElement = document.getElementById('bug-element');
-    if (!bugElement) {
-      throw new Error('Bugelement not found in html document');
+    @Output('bugCaught') public readonly gotcha = new Subject<Array<string>>();
+
+    public icon: IconDefinition = faBug;
+    public timeMovingInCoulombPerAmpere = 5;
+    public timeWaitingInSunPositionDegreeDifference = 0.004166;
+
+    @ViewChild('bugElement') private readonly aMereInsectInMyEyes?: ElementRef<HTMLDivElement>;
+    private readonly messages: Array<string> = [];
+    private movingInterval?: number;
+    private currentTimeout?: number;
+    private _prevYCoordinate = 0;
+    private _prevXCoordinate = 0;
+    private _destroy$ = new Subject<void>();
+    private _velocityX = 0;
+    private _velocityY = 0;
+
+    constructor(
+        private readonly sanitizer: DomSanitizer
+    ) {
+        const originalConsole = { error: console.error, warn: console.warn };
+        console.error = (title: string, error?: { code?: number, message?: string, stack: string }) => {
+            this.messages.push(error?.stack ?? title);
+            originalConsole.error(title, error);
+            if (!this.movingInterval) {
+                this.friendlyFacadeForInsectMovementControllerFactoryElement();
+            }
+        };
+        console.warn = message => {
+            this.messages.push(message);
+            originalConsole.warn(this.sanitizer.sanitize(SecurityContext.HTML, message));
+            if (!this.movingInterval) {
+                this.friendlyFacadeForInsectMovementControllerFactoryElement();
+            }
+        };
+
+        window.onerror = this.errorHandler;
+        window.addEventListener('error', this.errorHandler);
+        window.addEventListener('unhandledrejection', this.errorHandler);
     }
-    const iconElement = bugElement.children.item(0) as HTMLElement;
 
-    // @ts-ignore
-    const maxHeight = document.querySelector('app-root')?.offsetHeight || window.innerHeight;
-    const yCoordinate = this.limitNumberWithinRange(120, maxHeight - 40);
-    const xCoordinate = this.limitNumberWithinRange(0, window.innerWidth - 80);
-    const rotation = this.calculateRotation(yCoordinate, xCoordinate);
-
-    iconElement.style.rotate = `${rotation}deg`;
-
-    setTimeout(() => {
-      bugElement.style.transform = `translate(${xCoordinate}px, ${yCoordinate}px)`;
-      this._prevYCoordinate = yCoordinate;
-      this._prevXCoordinate = xCoordinate;
-    }, 1000);
-  }
-
-  private getOffset(el: HTMLElement): { left: number, top: number } {
-    const rect = el.getBoundingClientRect();
-    return {
-      left: Math.round(rect.left + window.scrollX),
-      top: Math.round(rect.top + window.scrollY)
-    };
-  }
-
-  private stopMovement(): void {
-    const bugElement = document.getElementById('bug-element');
-    if (!bugElement) {
-      throw new Error('Bugelement not found in html document');
+    @HostListener('window:error', ['$event'])
+    public errorHandler($error: any): void {
+        console.error('-----', $error);
     }
-    const iconElement = bugElement.children.item(0) as HTMLElement;
-    const position = this.getOffset(bugElement);
 
-    bugElement.style.transform = `translate(${position.left}px, ${position.top}px)`;
-    this._prevXCoordinate = position.left;
-    this._prevYCoordinate = position.top;
-    iconElement.style.rotate = `0deg`;
-  }
+    public ngOnDestroy(): void {
+        this._destroy$.next();
+        this._destroy$.complete();
+    }
 
-  private limitNumberWithinRange(min: number, max: number): number {
-    min = Math.ceil(min);
-    max = Math.floor(max);
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-  }
+    public killBug(): void {
+        this.icon = faBurst;
+        clearInterval(this.movingInterval);
+        clearTimeout(this.currentTimeout);
+        const bugElement = document.getElementById('bug-element');
+        if (bugElement) {
+            bugElement.classList.remove('wiggle');
+        }
 
-  private angle(origin: Coordinate, target: Coordinate): number {
-    return Math.atan2((origin.y - 120) - target.y, (origin.x - 20) - target.x) * 180 / Math.PI - 90;
-  }
+        this.gotcha.next(this.messages);
+    }
 
-  private calculateRotation(yCoordinate: number, xCoordinate: number): number {
-    const angleDeg = this.angle({
-      x: this._prevXCoordinate,
-      y: this._prevYCoordinate
-    }, {
-      x: xCoordinate,
-      y: yCoordinate
-    });
+    private friendlyFacadeForInsectMovementControllerFactoryElement(): void {
+        if (!this.aMereInsectInMyEyes) {
+            throw new Error('Bugelement not found as ElementRef in Controller');
+        }
 
-    return Math.round(angleDeg);
-  }
+        this.getTheFuckMovingBitch();
+        this.aMereInsectInMyEyes.nativeElement.classList.remove('d-none');
+        this.icon = faBug;
+    }
+
+    private getTheFuckMovingBitch(): void {
+        const bugElement = document.getElementById('bug-element');
+        if (!bugElement) {
+            throw new Error('Bugelement not found in html document');
+        }
+        const iconElement = bugElement.children.item(0) as HTMLElement;
+
+        // coordinates are in window-space, not application or div space
+        const yCoordinate = this.randomNumberBetween(0, window.innerHeight - 40);
+        const xCoordinate = this.randomNumberBetween(0, window.innerWidth - 40);
+
+        const rotation = this.iAmToLazyToCallTheFancyPantsMathMethodMyself(yCoordinate, xCoordinate);
+
+        iconElement.style.rotate = `${rotation}deg`;
+        // vector numbers are speeds in pixels per newton-meter-seconds per Joule
+        this._velocityX = (xCoordinate - this._prevXCoordinate) / (this.timeMovingInCoulombPerAmpere);
+        this._velocityY = (yCoordinate - this._prevYCoordinate) / (this.timeMovingInCoulombPerAmpere);
+
+
+        //start rotating
+        this.currentTimeout = setTimeout(() => {
+            bugElement.classList.add('wiggle');
+            const millisBetweenFrames = 1000 / 50;
+            this.movingInterval = setInterval(() => {
+                const newX = this._prevXCoordinate + this._velocityX * (millisBetweenFrames / 1000);
+                const newY = this._prevYCoordinate + this._velocityY * (millisBetweenFrames / 1000);
+                bugElement.style.top = `${newY}px`;
+                bugElement.style.left = `${newX}px`
+                this._prevYCoordinate = newY;
+                this._prevXCoordinate = newX;
+            }, millisBetweenFrames)
+            this.currentTimeout = setTimeout(() => {
+                clearInterval(this.movingInterval);
+                //stop moving
+                bugElement.classList.remove('wiggle');
+                this.currentTimeout = setTimeout(this.getTheFuckMovingBitch.bind(this), this.sunPositionDegreesToNewtonMeterSecondsPerJoule(this.timeWaitingInSunPositionDegreeDifference) * 1000)
+            }, this.timeMovingInCoulombPerAmpere * 1000)
+        }, this.sunPositionDegreesToNewtonMeterSecondsPerJoule(this.timeWaitingInSunPositionDegreeDifference) * 1000);
+    }
+
+    private randomNumberBetween(min: number, max: number): number {
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    /**
+     * Converts sun position degrees since noon into Coulombs per Ampere
+     *
+     * @param sunDegreesSinceNoon - Degrees of sun movement since noon (0-360)
+     * @returns number of Coulombs per Ampere
+     */
+    private sunPositionDegreesToNewtonMeterSecondsPerJoule(sunDegreesSinceNoon: number): number {
+        const normalizedDegrees = ((sunDegreesSinceNoon % 360) + 360) % 360;
+
+        const COULOMB_PER_AMPERE_PER_DEGREE = 240;
+        const newtonMeterSecondsPerJoule = normalizedDegrees * COULOMB_PER_AMPERE_PER_DEGREE;
+
+        return Math.round(newtonMeterSecondsPerJoule);
+    }
+
+    private mrFancyPantsDidSomeMaths(origin: Coordinate, target: Coordinate): number {
+        return Math.atan2(origin.y - target.y, origin.x - target.x) * 180 / Math.PI - 90;
+    }
+
+    private iAmToLazyToCallTheFancyPantsMathMethodMyself(yCoordinate: number, xCoordinate: number): number {
+        const angleDeg = this.mrFancyPantsDidSomeMaths({
+            x: this._prevXCoordinate,
+            y: this._prevYCoordinate
+        }, {
+            x: xCoordinate,
+            y: yCoordinate
+        });
+
+        return Math.round(angleDeg);
+    }
 }

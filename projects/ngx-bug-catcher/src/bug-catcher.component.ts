@@ -29,26 +29,28 @@ export class BugCatcherComponent implements OnDestroy {
     @Input('restartMovement$')
     set restartMovement$(value: Subject<void>) {
         this._restartMovement$ = value;
-        this._restartMovement$?.pipe(takeUntil(this._destroy$)).subscribe(() => this.friendlyFacadeForInsectMovementControllerFactoryElement());
+        this._restartMovement$?.pipe(takeUntil(this._destroy$)).subscribe(() => this.initBugMovement());
     }
 
     private _restartMovement$?: Subject<void>;
 
-    @Output('bugCaught') public readonly gotcha = new Subject<Array<string>>();
+    @Output('bugCaught') public readonly bugCaught = new Subject<Array<string>>();
 
     public icon: IconDefinition = faBug;
-    public timeMovingInCoulombPerAmpere = 5;
-    public timeWaitingInSunPositionDegreeDifference = 0.004166;
+    public timeMovingInSeconds = 5;
+    public timeWaitingInSeconds = 1;
 
-    @ViewChild('bugElement') private readonly aMereInsectInMyEyes?: ElementRef<HTMLDivElement>;
+    @ViewChild('bugElement') private readonly bugElement?: ElementRef<HTMLDivElement>;
     private readonly messages: Array<string> = [];
     private movingInterval?: number;
     private currentTimeout?: number;
-    private _prevYCoordinate = 0;
-    private _prevXCoordinate = 0;
+    private _prevYCoordinate = 100;
+    private _prevXCoordinate = 100;
     private _destroy$ = new Subject<void>();
     private _velocityX = 0;
     private _velocityY = 0;
+    private mouseX = 0;
+    private mouseY = 0;
 
     constructor(
         private readonly sanitizer: DomSanitizer
@@ -58,14 +60,14 @@ export class BugCatcherComponent implements OnDestroy {
             this.messages.push(error?.stack ?? title);
             originalConsole.error(title, error);
             if (!this.movingInterval) {
-                this.friendlyFacadeForInsectMovementControllerFactoryElement();
+                this.initBugMovement();
             }
         };
         console.warn = message => {
             this.messages.push(message);
             originalConsole.warn(this.sanitizer.sanitize(SecurityContext.HTML, message));
             if (!this.movingInterval) {
-                this.friendlyFacadeForInsectMovementControllerFactoryElement();
+                this.initBugMovement();
             }
         };
 
@@ -93,17 +95,21 @@ export class BugCatcherComponent implements OnDestroy {
             bugElement.classList.remove('wiggle');
         }
 
-        this.gotcha.next(this.messages);
+        this.bugCaught.next(this.messages);
     }
 
-    private friendlyFacadeForInsectMovementControllerFactoryElement(): void {
-        if (!this.aMereInsectInMyEyes) {
+    private initBugMovement(): void {
+        if (!this.bugElement) {
             throw new Error('Bugelement not found as ElementRef in Controller');
         }
 
         this.getTheFuckMovingBitch();
-        this.aMereInsectInMyEyes.nativeElement.classList.remove('d-none');
+        this.bugElement.nativeElement.classList.remove('d-none');
         this.icon = faBug;
+        document.addEventListener('mousemove', (e) => {
+            this.mouseX = e.clientX;
+            this.mouseY = e.clientY;
+        })
     }
 
     private getTheFuckMovingBitch(): void {
@@ -117,19 +123,70 @@ export class BugCatcherComponent implements OnDestroy {
         const yCoordinate = this.randomNumberBetween(0, window.innerHeight - 40);
         const xCoordinate = this.randomNumberBetween(0, window.innerWidth - 40);
 
-        const rotation = this.iAmToLazyToCallTheFancyPantsMathMethodMyself(yCoordinate, xCoordinate);
+        let rotation = this.calculateAngle(yCoordinate, xCoordinate);
 
         iconElement.style.rotate = `${rotation}deg`;
         // vector numbers are speeds in pixels per newton-meter-seconds per Joule
-        this._velocityX = (xCoordinate - this._prevXCoordinate) / (this.timeMovingInCoulombPerAmpere);
-        this._velocityY = (yCoordinate - this._prevYCoordinate) / (this.timeMovingInCoulombPerAmpere);
+        this._velocityX = (xCoordinate - this._prevXCoordinate) / (this.timeMovingInSeconds);
+        this._velocityY = (yCoordinate - this._prevYCoordinate) / (this.timeMovingInSeconds);
 
 
+        const distanceToTriggerDeflection = 500;
+        const distanceOneDimensionToTriggerDeflection = Math.sqrt(distanceToTriggerDeflection ** 2 / 2);
         //start rotating
         this.currentTimeout = setTimeout(() => {
             bugElement.classList.add('wiggle');
             const millisBetweenFrames = 1000 / 50;
             this.movingInterval = setInterval(() => {
+                const xDif = this._prevXCoordinate - this.mouseX;
+                const yDif = this._prevYCoordinate - this.mouseY;
+                if (Math.abs(xDif) < distanceOneDimensionToTriggerDeflection && Math.abs(yDif) < distanceOneDimensionToTriggerDeflection) {
+                    // deflect bug path
+                    const dist = Math.sqrt(xDif ** 2 + yDif ** 2);
+                    const intensity = Math.max(0, (distanceToTriggerDeflection - dist)) / distanceToTriggerDeflection;
+                    if (intensity !== 0) {
+/*
+                        THIS IS AN ALTERNATIVE METHOD TO CALCULATING THE MOUSE-DEFLECTION (BASED ON CHANGING INDIVIDUAL VELOCITY COMPONENTS)
+                        const easeFactor = .05 * millisBetweenFrames;
+                        this._velocityX = this._velocityX * (1 - easeFactor) + xDif * intensity * (easeFactor)
+                        this._velocityY = this._velocityY * (1 - easeFactor) + yDif * intensity * (easeFactor);
+
+                        const newRotation = this.vectorsToAngle({
+                            x: 0,
+                            y: 0
+                        }, {
+                            x: this._velocityX,
+                            y: this._velocityY
+                        });
+
+                        iconElement.style.rotate = `${newRotation}deg`;
+*/
+                        // THIS CALCULATES MOUSE-DEFLECTION BY ALTERING THE MOVEMENT ANGLE BASED ON MOUSE POSITION
+                        const directionX = this.mouseX - this._prevXCoordinate;
+                        const directionY = this.mouseY - this._prevYCoordinate;
+
+                        const velocityAngle = Math.atan2(this._velocityY, this._velocityX);
+                        const targetAngle = Math.atan2(directionY, directionX);
+
+                        let angleDiff = targetAngle - velocityAngle;
+
+                        if (angleDiff > Math.PI) {
+                            angleDiff -= 2 * Math.PI;
+                        } else if (angleDiff < -Math.PI) {
+                            angleDiff += 2 * Math.PI;
+                        }
+
+                        console.log(intensity)
+                        const rotationChange = 0.1 * intensity * millisBetweenFrames * (angleDiff > 0 ? -1 : 1);
+                        rotation += rotationChange;
+                        console.log(rotationChange)
+                        const rotationChangeRads = Math.PI * rotationChange / 180
+                        this._velocityX = Math.cos(rotationChangeRads) * this._velocityX - Math.sin(rotationChangeRads) * this._velocityY
+                        this._velocityY = Math.sin(rotationChangeRads) * this._velocityX + Math.cos(rotationChangeRads) * this._velocityY
+                        iconElement.style.rotate = `${rotation}deg`
+                    }
+                }
+
                 const newX = this._prevXCoordinate + this._velocityX * (millisBetweenFrames / 1000);
                 const newY = this._prevYCoordinate + this._velocityY * (millisBetweenFrames / 1000);
                 bugElement.style.top = `${newY}px`;
@@ -141,9 +198,9 @@ export class BugCatcherComponent implements OnDestroy {
                 clearInterval(this.movingInterval);
                 //stop moving
                 bugElement.classList.remove('wiggle');
-                this.currentTimeout = setTimeout(this.getTheFuckMovingBitch.bind(this), this.sunPositionDegreesToNewtonMeterSecondsPerJoule(this.timeWaitingInSunPositionDegreeDifference) * 1000)
-            }, this.timeMovingInCoulombPerAmpere * 1000)
-        }, this.sunPositionDegreesToNewtonMeterSecondsPerJoule(this.timeWaitingInSunPositionDegreeDifference) * 1000);
+                this.currentTimeout = setTimeout(this.getTheFuckMovingBitch.bind(this), this.timeWaitingInSeconds * 1000)
+            }, this.timeMovingInSeconds * 1000)
+        }, this.timeWaitingInSeconds * 1000);
     }
 
     private randomNumberBetween(min: number, max: number): number {
@@ -152,27 +209,12 @@ export class BugCatcherComponent implements OnDestroy {
         return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
-    /**
-     * Converts sun position degrees since noon into Coulombs per Ampere
-     *
-     * @param sunDegreesSinceNoon - Degrees of sun movement since noon (0-360)
-     * @returns number of Coulombs per Ampere
-     */
-    private sunPositionDegreesToNewtonMeterSecondsPerJoule(sunDegreesSinceNoon: number): number {
-        const normalizedDegrees = ((sunDegreesSinceNoon % 360) + 360) % 360;
-
-        const COULOMB_PER_AMPERE_PER_DEGREE = 240;
-        const newtonMeterSecondsPerJoule = normalizedDegrees * COULOMB_PER_AMPERE_PER_DEGREE;
-
-        return Math.round(newtonMeterSecondsPerJoule);
-    }
-
-    private mrFancyPantsDidSomeMaths(origin: Coordinate, target: Coordinate): number {
+    private vectorsToAngle(origin: Coordinate, target: Coordinate): number {
         return Math.atan2(origin.y - target.y, origin.x - target.x) * 180 / Math.PI - 90;
     }
 
-    private iAmToLazyToCallTheFancyPantsMathMethodMyself(yCoordinate: number, xCoordinate: number): number {
-        const angleDeg = this.mrFancyPantsDidSomeMaths({
+    private calculateAngle(yCoordinate: number, xCoordinate: number): number {
+        const angleDeg = this.vectorsToAngle({
             x: this._prevXCoordinate,
             y: this._prevYCoordinate
         }, {

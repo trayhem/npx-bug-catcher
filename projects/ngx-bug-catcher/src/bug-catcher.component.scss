@@ -1,8 +1,8 @@
 #bug-element {
   height: 40px;
   width: 40px;
-  top: 0;
-  left: 0;
+  top: 100px;
+  left: 100px;
   position: absolute;
   z-index: 99999;
   color: darkred;
@@ -11,7 +11,7 @@
 }
 
 #icon-wrapper {
-  transition: rotate 0.5s;
+  //transition: rotate 0.5s;
 }
 
 .wiggle {

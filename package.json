@@ -1,6 +1,6 @@
 {
   "name": "ngx-bug-catcher",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Provides an gamification variant to submit bug reports for Angular projects",
   "main": "public-api.ts",
   "author": "Christopher Fullarton",

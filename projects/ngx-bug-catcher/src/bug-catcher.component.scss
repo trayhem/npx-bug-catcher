@@ -1,15 +1,29 @@
 #bug-element {
   height: 40px;
   width: 40px;
-  top: 120px;
-  left: 20px;
+  top: 100px;
+  left: 100px;
   position: absolute;
-  z-index: 1000;
+  z-index: 99999;
   color: darkred;
-  transition: transform 10s linear;
+  //transition: all 10s linear;
   cursor: url('/assets/cursor-bug.png'), auto;
 }
 
 #icon-wrapper {
-  transition: rotate 0.5s;
+  //transition: rotate 0.5s;
+}
+
+.wiggle {
+  animation: wiggling .15s linear 0s infinite alternate;
+  rotation-point: center;
+}
+
+@keyframes wiggling {
+  0% {
+    rotate: -10deg
+  }
+  100% {
+    rotate: 10deg
+  }
 }
